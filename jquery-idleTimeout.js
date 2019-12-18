@@ -4,13 +4,13 @@
  * visit http://creativecommons.org/licenses/by-sa/3.0/us/ or send a letter
  * to Creative Commons, 171 Second Street, Suite 300, San Francisco, California, 94105, USA.
  *
- * Modified by: Jill Elaine
- * Email: jillelaine01@gmail.com
+ * Modified by: Hari
+ * Email: harikrishnan.a@ia.ooo
  *
  * Configurable idle (no activity) timer and logout redirect for jQuery.
  * Works across multiple windows and tabs from the same domain.
  *
- * Dependencies: JQuery v1.7+, JQuery UI, store.js from https://github.com/marcuswestin/store.js - v1.3.4+
+ * Dependencies: JQuery v1.7+, JQuery UI, $.cookies
  *
  * version 1.0.10
  **/
@@ -26,6 +26,7 @@
     //## Public Configuration Variables
     //##############################
     var defaultConfig = {
+      store: $.cookies,
       redirectUrl: '/logout',      // redirect to this url on logout. Set to "redirectUrl: false" to disable redirect
 
       // idle settings
@@ -52,8 +53,8 @@
       dialogStayLoggedInButton: 'Stay Logged In',
       dialogLogOutNowButton: 'Log Out Now',
 
-      // error message if https://github.com/marcuswestin/store.js not enabled
-      errorAlertMessage: 'Please disable "Private Mode", or upgrade to a modern browser. Or perhaps a dependent file missing. Please see: https://github.com/marcuswestin/store.js',
+      // error message if $.cookies not enabled
+      errorAlertMessage: 'Please disable "Private Mode", or upgrade to a modern browser. Or perhaps a dependent file missing.',
 
       // server-side session keep-alive timer
       sessionKeepAliveTimer: 600,   // ping the server at this interval in seconds. 600 = 10 Minutes. Set to false to disable pings
@@ -71,6 +72,7 @@
       openWarningDialog, dialogTimer, checkDialogTimeout, startDialogTimer, stopDialogTimer, isDialogOpen, destroyWarningDialog, countdownDisplay, // warning dialog
       logoutUser;
 
+    var store = currentConfig.store;
     //##############################
     //## Public Functions
     //##############################
@@ -88,7 +90,7 @@
     startKeepSessionAlive = function () {
 
       keepSession = function () {
-        $.get(currentConfig.sessionKeepAliveUrl);
+        $.get(currentConfig.sessionKeepAliveUrl).fail(logoutUser);
         startKeepSessionAlive();
       };
 
@@ -155,8 +157,11 @@
       var dialogContent = "<div id='idletimer_warning_dialog'><p>" + currentConfig.dialogText + "</p><p style='display:inline'>" + currentConfig.dialogTimeRemaining + ": <div style='display:inline' id='countdownDisplay'></div></p></div>";
 
       $(dialogContent).dialog({
+        resizable: false,
+        width: 345,
         buttons: [{
           text: currentConfig.dialogStayLoggedInButton,
+          classes: 'btn btn-default',
           click: function () {
             destroyWarningDialog();
             stopDialogTimer();
@@ -165,6 +170,7 @@
         },
           {
             text: currentConfig.dialogLogOutNowButton,
+            classes: 'btn btn-primary',
             click: function () {
               logoutUser();
             }
@@ -230,7 +236,12 @@
         if (mins < 10) { mins = '0' + mins; }
         secs = dialogDisplaySeconds - (mins * 60); // seconds
         if (secs < 10) { secs = '0' + secs; }
-        $('#countdownDisplay').html(mins + ':' + secs);
+        if(dialogDisplaySeconds >= 0){
+          $('#countdownDisplay').html(mins + ':' + secs);
+        }
+        else{
+          $('#countdownDisplay').html(mins + ':' + secs + '. Logging out now ..');
+        }
         dialogDisplaySeconds -= 1;
       }, 1000);
     };
@@ -257,8 +268,8 @@
     // This is your construct.
     //###############################
     return this.each(function () {
-
-      if (store.enabled) {
+      var store = currentConfig.store;
+      if (store) {
 
         store.set('idleTimerLastActivity', $.now());
         store.set('idleTimerLoggedOut', false);
